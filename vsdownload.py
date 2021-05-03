@@ -19,7 +19,7 @@ import functools
 import hashlib
 import os
 import multiprocessing.pool
-import simplejson
+import json
 import six
 import shutil
 import socket
@@ -123,7 +123,7 @@ def getManifest(args):
     if args.manifest == None:
         url = "https://aka.ms/vs/%s/%s/channel" % (args.major, args.type)
         print("Fetching %s" % (url))
-        manifest = simplejson.loads(six.moves.urllib.request.urlopen(url).read())
+        manifest = json.load(six.moves.urllib.request.urlopen(url))
         print("Got toplevel manifest for %s" % (manifest["info"]["productDisplayVersion"]))
         for item in manifest["channelItems"]:
             if "type" in item and item["type"] == "Manifest":
@@ -135,8 +135,8 @@ def getManifest(args):
     if not args.manifest.startswith("http"):
         args.manifest = "file:" + args.manifest
 
-    manifestdata = six.moves.urllib.request.urlopen(args.manifest).read()
-    manifest = simplejson.loads(manifestdata)
+    manifestdata = six.moves.urllib.request.urlopen(args.manifest)
+    manifest = json.load(manifestdata)
     print("Loaded installer manifest for %s" % (manifest["info"]["productDisplayVersion"]))
 
     if args.save_manifest:
