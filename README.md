@@ -19,13 +19,13 @@ Build the docker image like this:
 
 After building the docker image, there are 4 directories with tools,
 in `/opt/msvc/bin/<arch>`, for all architectures out of `x86`,
-`x64`, `arm` and `arm64`, that should be added to the PATH before building
+`x64`, `arm` and `arm64`, that can be added to the PATH before building
 with it.
 
 The installer scripts also work fine without docker; just run the following two commands:
 
     ./vsdownload.py --dest <raw dir>
-    ./install.py <raw dir> <dst dir> <optional prefix>
+    ./install.py <raw dir> <dst dir> -l <optional llvm/clang version suffix>
 
 The unpacking requires recent versions of msitools (0.98) and libgcab
 (1.2); sufficiently new versions are available in e.g. Ubuntu 19.04.

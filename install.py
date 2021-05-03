@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import argparse
 import sys
 import os
 import shutil
@@ -6,51 +7,47 @@ import glob
 import codecs
 import re
 
-TEMPLATE_MSVCENV = """#!/usr/bin/env sh
-SDK=kits/10
-BASE="{BASE}"
-MSVCVER="{MSVCVER}"
-SDKVER="{SDKVER}"
-ARCH="{ARCH}"
-MSVCDIR="$BASE/vc/tools/msvc/$MSVCVER"
-SDKINCLUDE="$BASE/$SDK/include/$SDKVER"
-SDKLIB="$BASE/$SDK/lib/$SDKVER"
-SDKBINDIR=$BASE/$SDK/bin/$SDKVER/x64
 
+TEMPLATE_MSVCENV = """#!/usr/bin/env bash
+BASE="$(cd "$(dirname "${{BASH_SOURCE[0]}}")/../.." && pwd)"
+MSVCDIR="$BASE/vc/tools/msvc/{MSVCVER}"
+SDKINCLUDE="$BASE/kits/10/include/{SDKVER}"
+SDKLIB="$BASE/kits/10/lib/{SDKVER}"
 export INCLUDE="$MSVCDIR/include;$SDKINCLUDE/shared;$SDKINCLUDE/ucrt;$SDKINCLUDE/um;$SDKINCLUDE/winrt"
-export LIB="$MSVCDIR/lib/$ARCH;$SDKLIB/ucrt/$ARCH;$SDKLIB/um/$ARCH"
+export LIB="$MSVCDIR/lib/{ARCH};$SDKLIB/ucrt/{ARCH};$SDKLIB/um/{ARCH}"
 export LIBPATH="$LIB"
 """
 
-TEMPLATE_CL = """#!/usr/bin/env sh
-source "{BASE}/bin/{ARCH}/msvcenv.sh"
-clang-cl "$@"
+TEMPLATE_CL = """#!/usr/bin/env bash
+source "$(cd "$(dirname "${{BASH_SOURCE[0]}}")" && pwd)/msvcenv.sh"
+clang-cl{LLVM} "$@"
 """
 
-TEMPLATE_LINK = """#!/usr/bin/env sh
-source "{BASE}/bin/{ARCH}/msvcenv.sh"
-lld-link "$@"
+TEMPLATE_LINK = """#!/usr/bin/env bash
+source "$(cd "$(dirname "${{BASH_SOURCE[0]}}")" && pwd)/msvcenv.sh"
+lld-link{LLVM} "$@"
 """
 
-TEMPLATE_LIB = """#!/usr/bin/env sh
-source "{BASE}/bin/{ARCH}/msvcenv.sh"
-llvm-lib "$@"
+TEMPLATE_LIB = """#!/usr/bin/env bash
+source "$(cd "$(dirname "${{BASH_SOURCE[0]}}")" && pwd)/msvcenv.sh"
+llvm-lib{LLVM} "$@"
 """
 
-TEMPLATE_RC = """#!/usr/bin/env sh
-source "{BASE}/bin/{ARCH}/msvcenv.sh"
-llvm-rc "$@"
+TEMPLATE_RC = """#!/usr/bin/env bash
+source "$(cd "$(dirname "${{BASH_SOURCE[0]}}")" && pwd)/msvcenv.sh"
+llvm-rc{LLVM} "$@"
 """
 
-TEMPLATE_RUSTENV_HEADER="""#!/usr/bin/env sh
+TEMPLATE_RUSTENV_HEADER="""#!/usr/bin/env bash
+BASE_BIN="$(cd "$(dirname "${{BASH_SOURCE[0]}}")" && pwd)"
 """
 
 TEMPLATE_RUSTENV = """
-export CC_{PLATFORM}="{BASE}/bin/{ARCH}/clang-cl.exe"
-export CXX_{PLATFORM}="{BASE}/bin/{ARCH}/clang-cl.exe"
-export AR_{PLATFORM}="{BASE}/bin/{ARCH}/lib.exe"
-export RC_{PLATFORM}="{BASE}/bin/{ARCH}/rc.exe"
-export CARGO_TARGET_{PLATFORM_UPPER}_LINKER="{BASE}/bin/{ARCH}/link.exe"
+export CC_{PLATFORM}="$BASE_BIN/{ARCH}/clang-cl.exe"
+export CXX_{PLATFORM}="$BASE_BIN/{ARCH}/clang-cl.exe"
+export AR_{PLATFORM}="$BASE_BIN/{ARCH}/lib.exe"
+export RC_{PLATFORM}="$BASE_BIN/{ARCH}/rc.exe"
+export CARGO_TARGET_{PLATFORM_UPPER}_LINKER="$BASE_BIN/{ARCH}/link.exe"
 """
 
 ARCH_PLATFORMS = {
@@ -69,65 +66,37 @@ ARCH_PLATFORMS = {
 def copy_keep(src_dir, dst_dir, name):
     src = f"{src_dir}/{name}"
     dst = f"{dst_dir}/{name}"
-    os.makedirs(dst_dir, exist_ok = True)
-    shutil.copy(src, dst)
+    if not src == dst:
+        shutil.copy(src, dst)
     os.chmod(dst, 0o644)
+    return dst
 
 def copy_lower(src_dir, dst_dir, name):
     src = f"{src_dir}/{name}"
     dst = f"{dst_dir}/{name.lower()}"
-    os.makedirs(dst_dir, exist_ok = True)
-    shutil.copy(src, dst)
+    if not src == dst:
+        shutil.copy(src, dst)
     os.chmod(dst, 0o644)
+    return dst
 
-def copy_lower_fix_include(src_dir, dst_dir, name):
+def copy_include_lower(src_dir, dst_dir, name):
     src = f"{src_dir}/{name}"
     dst = f"{dst_dir}/{name.lower()}"
-    os.makedirs(dst_dir, exist_ok = True)
+    lines = []
     with codecs.open(src, "r", encoding="cp1250") as inf:
-        with codecs.open(dst, "w", encoding="cp1250") as outf:
-            for line in inf.readlines():
-                if line.startswith("#include"):
-                    line = line.lower()
-                    line = line.replace("\\", "/")
-                    changed = True
-                outf.write(line)
-        os.chmod(dst, 0o644)
-
-def get_latest_version(dirname):
-    alphanum = lambda key: tuple(int(c) if c.isdigit() else c for c in re.split('(\d+)', key))
-    versions = list(sorted(os.listdir(dirname), key = alphanum))
-    return versions[-1]
-
-def generate_exe(filename, template, **kwargs):
-    dirname = os.path.dirname(filename)
-    os.makedirs(dirname, exist_ok = True)
-    with open(filename, "w") as outf:
-        outf.write(template.format(**kwargs))
-    os.chmod(filename, 0o755)
-
-def generate_env(dst, base):
-    sdkver = get_latest_version(f"{dst}/kits/10/include")
-    msvcver = get_latest_version(f"{dst}/vc/tools/msvc")
-
-    base_kwargs = { 'BASE': base, 'SDKVER': sdkver, 'MSVCVER': msvcver }
-    for arch in ARCH_PLATFORMS.keys():
-        kwargs = { **base_kwargs, 'ARCH': arch }
-        generate_exe(f"{dst}/bin/{arch}/msvcenv.sh", TEMPLATE_MSVCENV, **kwargs)
-        generate_exe(f"{dst}/bin/{arch}/clang-cl.exe", TEMPLATE_CL, **kwargs)
-        generate_exe(f"{dst}/bin/{arch}/link.exe", TEMPLATE_LINK, **kwargs)
-        generate_exe(f"{dst}/bin/{arch}/lib.exe", TEMPLATE_LIB, **kwargs)
-        generate_exe(f"{dst}/bin/{arch}/rc.exe", TEMPLATE_RC, **kwargs)
-
-    generate_exe(f"{dst}/bin/rustenv.sh", TEMPLATE_RUSTENV_HEADER, **base_kwargs)
-    with open(f"{dst}/bin/rustenv.sh", "a") as outf:
-        for arch, platforms in ARCH_PLATFORMS.items():
-            for platform in platforms:
-                kwargs = { **base_kwargs, 'ARCH': arch, 'PLATFORM': platform, 'PLATFORM_UPPER': platform.upper() }
-                outf.write(TEMPLATE_RUSTENV.format(**kwargs))
+        for line in inf.readlines():
+            if line.startswith("#include"):
+                line = line.replace("\\", "/").lower()
+            lines.append(line)
+    with codecs.open(dst, "w", encoding="cp1250") as outf:
+        for line in lines:
+            outf.write(line)
+    os.chmod(dst, 0o644)
+    return dst
 
 def install_dir(src, dst, filters):
-    for root, dirs, files in os.walk(src, topdown=False):
+    done = set()
+    for root, dirs, files in os.walk(src):
         root = os.path.relpath(root, src)
         for name in files:
             org_name = f"{root}/{name}".replace("\\", "/")
@@ -135,25 +104,67 @@ def install_dir(src, dst, filters):
                 if filter_func(org_name):
                     src_dir = f"{src}/{root}".replace("\\", "/")
                     dst_dir = f"{dst}/{root.lower()}".replace("\\", "/")
-                    copy_func(src_dir, dst_dir, name)
+                    os.makedirs(dst_dir, exist_ok = True)
+                    done_name = copy_func(src_dir, dst_dir, name)
+                    done.add(done_name)
                     break
 
-def install(src, dst, base):
+    if src == dst:
+        for root, dirs, files in os.walk(dst, topdown=False):
+            for name in files:
+                filename = f'{root}/{name}'.replace("\\", "/")
+                if not filename in done:
+                    os.remove(filename)
+            for name in dirs:
+                dirname = f'{root}/{name}'.replace("\\", "/")
+                if not os.listdir(dirname):
+                    os.rmdir(dirname)
+
+def get_latest_version(dirname):
+    alphanum = lambda key: tuple(int(c) if c.isdigit() else c for c in re.split('(\d+)', key))
+    versions = list(sorted(os.listdir(dirname), key = alphanum))
+    return versions[-1]
+
+def generate_exe(filename, mode, template, **kwargs):
+    with open(filename, mode) as outf:
+        outf.write(template.format(**kwargs))
+    os.chmod(filename, 0o755)
+
+def generate_env(dst, llvm):
+    base_kwargs = {
+        'LLVM': f"-{llvm}" if llvm else "",
+        'SDKVER': get_latest_version(f"{dst}/kits/10/include"),
+        'MSVCVER': get_latest_version(f"{dst}/vc/tools/msvc"),
+    }
+    os.makedirs(f"{dst}/bin", exist_ok = True)
+    generate_exe(f"{dst}/bin/rustenv.sh", "w", TEMPLATE_RUSTENV_HEADER, **base_kwargs)
+    for arch, platforms in ARCH_PLATFORMS.items():
+        arch_kwargs = { **base_kwargs, 'ARCH': arch }
+        os.makedirs(f"{dst}/bin/{arch}", exist_ok = True)
+        generate_exe(f"{dst}/bin/{arch}/msvcenv.sh", "w", TEMPLATE_MSVCENV, **arch_kwargs)
+        generate_exe(f"{dst}/bin/{arch}/clang-cl.exe", "w", TEMPLATE_CL, **arch_kwargs)
+        generate_exe(f"{dst}/bin/{arch}/link.exe", "w", TEMPLATE_LINK, **arch_kwargs)
+        generate_exe(f"{dst}/bin/{arch}/lib.exe", "w", TEMPLATE_LIB, **arch_kwargs)
+        generate_exe(f"{dst}/bin/{arch}/rc.exe", "w", TEMPLATE_RC, **arch_kwargs)
+        for platform in platforms:
+            platform_kwargs = { **arch_kwargs, 'PLATFORM': platform, 'PLATFORM_UPPER': platform.upper() }
+            generate_exe(f"{dst}/bin/rustenv.sh", "a", TEMPLATE_RUSTENV, **platform_kwargs)
+
+def install(src, dst, llvm=""):
+    src =  os.path.abspath(src).replace("\\", "/")
+    dst =  os.path.abspath(dst).replace("\\", "/")
     copy_filters = {
-        re.compile(r"^kits/10/include/[^/]+/(um|shared)/.+", re.IGNORECASE).match : copy_lower_fix_include,
-        re.compile(r"^kits/10/(lib|include)/.+", re.IGNORECASE).match : copy_lower,
+        re.compile(r"^kits/10/include/[^/]+/(um|shared)/.+", re.IGNORECASE).match : copy_include_lower,
+        re.compile(r"^kits/10/lib/[^/]+/(um|shared)/.+", re.IGNORECASE).match : copy_lower,
+        re.compile(r"^kits/10/(include|lib)/.+", re.IGNORECASE).match : copy_keep,
         re.compile(r"^vc/tools/msvc/[^/]+/(lib|include)/.+", re.IGNORECASE).match : copy_keep,
     }
     install_dir(src, dst, copy_filters)
-    generate_env(dst, base)
+    generate_env(dst, llvm)
 
-def run(script, src, dst = ".", prefix = "", *args):
-    src =  os.path.abspath(src).replace("\\", "/")
-    dst =  os.path.abspath(dst).replace("\\", "/")
-    prefix = prefix.replace("\\", "/")
-    if prefix:
-        install(src, f"{dst}/{prefix}/msvc", f"/{prefix}/msvc")
-    else:
-        install(src, f"{dst}/msvc", f"{dst}/msvc")
-
-run(*sys.argv)
+parser = argparse.ArgumentParser(description='Install msvc')
+parser.add_argument('src', type=str, help='msvc source files from vsdownload.py')
+parser.add_argument('dst', type=str, help='destination directory')
+parser.add_argument('-l', '--llvm', type=str, default="", help='optional llvm/clang version suffix(example: "-l 12")')
+args = parser.parse_args()
+install(args.src, args.dst, args.llvm)
