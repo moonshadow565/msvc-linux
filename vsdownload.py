@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 #
 # Copyright (c) 2019 Martin Storsjo
 #
@@ -20,12 +20,13 @@ import hashlib
 import os
 import multiprocessing.pool
 import json
-import six
 import shutil
 import socket
 import subprocess
 import sys
 import tempfile
+import urllib
+import urllib.request
 import zipfile
 
 def getArgsParser():
@@ -123,7 +124,8 @@ def getManifest(args):
     if args.manifest == None:
         url = "https://aka.ms/vs/%s/%s/channel" % (args.major, args.type)
         print("Fetching %s" % (url))
-        manifest = json.load(six.moves.urllib.request.urlopen(url))
+        manifeststream = urllib.request.urlopen(url)
+        manifest = json.load(manifeststream)
         print("Got toplevel manifest for %s" % (manifest["info"]["productDisplayVersion"]))
         for item in manifest["channelItems"]:
             if "type" in item and item["type"] == "Manifest":
@@ -135,8 +137,8 @@ def getManifest(args):
     if not args.manifest.startswith("http"):
         args.manifest = "file:" + args.manifest
 
-    manifestdata = six.moves.urllib.request.urlopen(args.manifest)
-    manifest = json.load(manifestdata)
+    manifestdata = urllib.request.urlopen(args.manifest).read()
+    manifest = json.loads(manifestdata)
     print("Loaded installer manifest for %s" % (manifest["info"]["productDisplayVersion"]))
 
     if args.save_manifest:
@@ -409,7 +411,7 @@ def _downloadPayload(payload, destname, fileid, allowHashMismatch):
             if "size" in payload:
                 size = payload["size"]
             print("Downloading %s (%s)" % (fileid, formatSize(size)))
-            six.moves.urllib.request.urlretrieve(payload["url"], destname)
+            urllib.request.urlretrieve(payload["url"], destname)
             if "sha256" in payload:
                 if sha256File(destname).lower() != payload["sha256"].lower():
                     if allowHashMismatch:
@@ -448,7 +450,7 @@ def mergeTrees(src, dest):
 def unzipFiltered(zip, dest):
     tmp = os.path.join(dest, "extract")
     for f in zip.infolist():
-        name = six.moves.urllib.parse.unquote(f.filename)
+        name = urllib.parse.unquote(f.filename)
         if "/" in name:
             sep = name.rfind("/")
             dir = os.path.join(dest, name[0:sep])
@@ -525,9 +527,9 @@ if __name__ == "__main__":
         sys.exit(0)
 
     if not args.accept_license:
-        response = six.moves.input("Do you accept the license at " + findPackage(packages, "Microsoft.VisualStudio.Product.BuildTools", None)["localizedResources"][0]["license"] + " (yes/no)? ")
+        response = input("Do you accept the license at " + findPackage(packages, "Microsoft.VisualStudio.Product.BuildTools", None)["localizedResources"][0]["license"] + " (yes/no)? ")
         while response != "yes" and response != "no":
-            response = six.moves.input("Do you accept the license? Answer \"yes\" or \"no\": ")
+            response = input("Do you accept the license? Answer \"yes\" or \"no\": ")
         if response == "no":
             sys.exit(0)
 
