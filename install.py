@@ -130,7 +130,7 @@ def generate_exe(filename, mode, template, **kwargs):
         outf.write(template.format(**kwargs))
     os.chmod(filename, 0o755)
 
-def generate_env(dst, llvm):
+def generate_env(dst, llvm, archs):
     base_kwargs = {
         'LLVM': f"-{llvm}" if llvm else "",
         'SDKVER': get_latest_version(f"{dst}/kits/10/include"),
@@ -139,6 +139,8 @@ def generate_env(dst, llvm):
     os.makedirs(f"{dst}/bin", exist_ok = True)
     generate_exe(f"{dst}/bin/rustenv.sh", "w", TEMPLATE_RUSTENV_HEADER, **base_kwargs)
     for arch, platforms in ARCH_PLATFORMS.items():
+        if not arch in archs:
+            continue
         arch_kwargs = { **base_kwargs, 'ARCH': arch }
         os.makedirs(f"{dst}/bin/{arch}", exist_ok = True)
         generate_exe(f"{dst}/bin/{arch}/msvcenv.sh", "w", TEMPLATE_MSVCENV, **arch_kwargs)
@@ -150,25 +152,31 @@ def generate_env(dst, llvm):
             platform_kwargs = { **arch_kwargs, 'PLATFORM': platform, 'PLATFORM_UPPER': platform.upper() }
             generate_exe(f"{dst}/bin/rustenv.sh", "a", TEMPLATE_RUSTENV, **platform_kwargs)
 
-def install(src, dst = "", llvm = ""):
+def install(src, dst = "", llvm = "", archs = ()):
     if not src:
         src = "."
     if not dst:
         dst = src
     src =  os.path.abspath(src).replace("\\", "/")
     dst =  os.path.abspath(dst).replace("\\", "/")
+    archs = set(a.lower().strip() for a in archs)
+    assert(archs)
+    arch_filter = '|'.join(archs)
     copy_filters = {
         re.compile(r"^kits/10/include/[^/]+/(um|shared)/.+", re.IGNORECASE).match : copy_include_lower,
-        re.compile(r"^kits/10/lib/[^/]+/(um|shared)/.+", re.IGNORECASE).match : copy_lower,
-        re.compile(r"^kits/10/(include|lib)/.+", re.IGNORECASE).match : copy_keep,
-        re.compile(r"^vc/tools/msvc/[^/]+/(lib|include)/.+", re.IGNORECASE).match : copy_keep,
+        re.compile(r"^kits/10/include/.+", re.IGNORECASE).match : copy_keep,
+        re.compile(r"^vc/tools/msvc/[^/]+/include/.+", re.IGNORECASE).match : copy_keep,
+        re.compile(rf"^kits/10/lib/[^/]+/(um|shared)/({arch_filter})/.+", re.IGNORECASE).match : copy_lower,
+        re.compile(rf"^kits/10/lib/[^/]+/[^/]+/({arch_filter})/.+.+", re.IGNORECASE).match : copy_keep,
+        re.compile(rf"^vc/tools/msvc/[^/]+/lib/({arch_filter})/.+", re.IGNORECASE).match : copy_keep,
     }
     install_dir(src, dst, copy_filters)
-    generate_env(dst, llvm)
+    generate_env(dst, llvm, archs)
 
 parser = argparse.ArgumentParser(description='Install msvc')
 parser.add_argument('src', type=str, help='msvc source files from vsdownload.py')
 parser.add_argument('dst', type=str, nargs='?', default="", help='destination directory')
 parser.add_argument('-l', '--llvm', type=str, default="", help='llvm/clang version suffix(example: "-l 12")')
+parser.add_argument('-a', '--archs', type=str, default="x86,x64", help='default: x86,x64')
 args = parser.parse_args()
-install(args.src, args.dst, args.llvm)
+install(args.src, args.dst, args.llvm, args.archs.split(','))
