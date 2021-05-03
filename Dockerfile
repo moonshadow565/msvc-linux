@@ -1,7 +1,10 @@
 FROM ubuntu:20.04
 
 RUN apt-get update && \
-    apt-get install -y clang-11 llvm-11 lld-11 python3 msitools ca-certificates && \
+    apt-get install -y \
+        python3 msitools ca-certificates \
+        clang-11 clang-tools-11 llvm-11 lld-11 \
+        curl git build-essential && \
     apt-get clean -y && \
     rm -rf /var/lib/apt/lists/*
 
