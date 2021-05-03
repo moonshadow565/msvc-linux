@@ -150,7 +150,11 @@ def generate_env(dst, llvm):
             platform_kwargs = { **arch_kwargs, 'PLATFORM': platform, 'PLATFORM_UPPER': platform.upper() }
             generate_exe(f"{dst}/bin/rustenv.sh", "a", TEMPLATE_RUSTENV, **platform_kwargs)
 
-def install(src, dst, llvm=""):
+def install(src, dst = "", llvm = ""):
+    if not src:
+        src = "."
+    if not dst:
+        dst = src
     src =  os.path.abspath(src).replace("\\", "/")
     dst =  os.path.abspath(dst).replace("\\", "/")
     copy_filters = {
@@ -164,7 +168,7 @@ def install(src, dst, llvm=""):
 
 parser = argparse.ArgumentParser(description='Install msvc')
 parser.add_argument('src', type=str, help='msvc source files from vsdownload.py')
-parser.add_argument('dst', type=str, help='destination directory')
-parser.add_argument('-l', '--llvm', type=str, default="", help='optional llvm/clang version suffix(example: "-l 12")')
+parser.add_argument('dst', type=str, nargs='?', default="", help='destination directory')
+parser.add_argument('-l', '--llvm', type=str, default="", help='llvm/clang version suffix(example: "-l 12")')
 args = parser.parse_args()
 install(args.src, args.dst, args.llvm)

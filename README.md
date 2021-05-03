@@ -24,8 +24,8 @@ with it.
 
 The installer scripts also work fine without docker; just run the following two commands:
 
-    ./vsdownload.py --dest <raw dir>
-    ./install.py <raw dir> <dst dir> -l <optional llvm/clang version suffix>
+    ./vsdownload.py --dest <source dir>
+    ./install.py <source dir> <optional destination dir> -l <optional llvm/clang version suffix>
 
 The unpacking requires recent versions of msitools (0.98) and libgcab
 (1.2); sufficiently new versions are available in e.g. Ubuntu 19.04.
@@ -37,8 +37,7 @@ The unpacking requires recent versions of msitools (0.98) and libgcab
 With this toolchain, cross-compiling rust code has never been easier. Here's
 what you need to do to get setup:
 
-1. Install this toolchain, e.g. `./vsdownload.py --dest ~/tmp/msvc &&
-   ./install.py ~/tmp/msvc ~`. You can install it anywhere.
+1. Install this toolchain, e.g. `./vsdownload.py --dest /opt/msvc && ./install.py /opt/msvc`. You can install it anywhere.
 2. Install `clang`, `llvm-lib`, `lld` and `llvm-rc`:
     - `clang` will be used to compile any C dependencies you may have with the
       `cc` crate. Windows officially supports building `msvc` binaries in clang
