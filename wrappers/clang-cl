@@ -1,6 +1,0 @@
-#!/usr/bin/env bash
-. $(dirname $0)/msvcenv.sh
-
-CLANG_PATH=clang
-
-exec -a clang-cl $CLANG_PATH "$@"

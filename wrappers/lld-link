@@ -1,6 +1,0 @@
-#!/usr/bin/env bash
-. $(dirname $0)/msvcenv.sh
-
-LLD_PATH=$(command -v rust-lld || echo lld)
-
-exec -a lld-link $LLD_PATH "$@"
