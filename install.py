@@ -10,6 +10,10 @@ import re
 
 TEMPLATE_MSVCENV = """#!/usr/bin/env bash
 BASE="$(cd "$(dirname "${{BASH_SOURCE[0]}}")/../.." && pwd)"
+if which cygpath >/dev/null; then
+    MSYS_NO_PATHCONV=1
+    BASE=$(cygpath -aw "$BASE")
+fi
 MSVCDIR="$BASE/vc/tools/msvc/{MSVCVER}"
 SDKINCLUDE="$BASE/kits/10/include/{SDKVER}"
 SDKLIB="$BASE/kits/10/lib/{SDKVER}"
