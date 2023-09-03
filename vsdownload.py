@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 #
 # Copyright (c) 2019 Martin Storsjo
 #
@@ -33,7 +33,7 @@ def getArgsParser():
     parser = argparse.ArgumentParser(description = "Download and install Visual Studio")
     parser.add_argument("--manifest", metavar="manifest", help="A predownloaded manifest file")
     parser.add_argument("--save-manifest", const=True, action="store_const", help="Store the downloaded manifest to a file")
-    parser.add_argument("--major", default=16, metavar="version", help="The major version to download (defaults to 16)")
+    parser.add_argument("--major", default=17, metavar="version", help="The major version to download (defaults to 17)")
     parser.add_argument("--preview", dest="type", default="release", const="pre", action="store_const", help="Download the preview version instead of the release version")
     parser.add_argument("--cache", metavar="dir", help="Directory to use as a persistent cache for downloaded files")
     parser.add_argument("--dest", metavar="dir", help="Directory to install into")
@@ -52,16 +52,8 @@ def getArgsParser():
     parser.add_argument("--only-download", const=True, action="store_const", help="Stop after downloading package files")
     parser.add_argument("--only-unpack", const=True, action="store_const", help="Unpack the selected packages and keep all files, in the layout they are unpacked, don't restructure and prune files other than what's needed for MSVC CLI tools")
     parser.add_argument("--keep-unpack", const=True, action="store_const", help="Keep the unpacked files that aren't otherwise selected as needed output")
-    parser.add_argument("--msvc-15.4", const=True, action="store_const", help="Install specifically the MSVC 15.4 toolchain")
-    parser.add_argument("--msvc-15.5", const=True, action="store_const", help="Install specifically the MSVC 15.5 toolchain")
-    parser.add_argument("--msvc-15.6", const=True, action="store_const", help="Install specifically the MSVC 15.6 toolchain")
-    parser.add_argument("--msvc-15.7", const=True, action="store_const", help="Install specifically the MSVC 15.7 toolchain")
-    parser.add_argument("--msvc-15.8", const=True, action="store_const", help="Install specifically the MSVC 15.8 toolchain")
-    parser.add_argument("--msvc-15.9", const=True, action="store_const", help="Install specifically the MSVC 15.9 toolchain")
-    parser.add_argument("--msvc-16.0", const=True, action="store_const", help="Install specifically the MSVC 16.0 toolchain")
-    parser.add_argument("--msvc-16.1", const=True, action="store_const", help="Install specifically the MSVC 16.1 toolchain")
-    parser.add_argument("--msvc-16.2", const=True, action="store_const", help="Install specifically the MSVC 16.2 toolchain")
-    parser.add_argument("--msvc-16.3", const=True, action="store_const", help="Install specifically the MSVC 16.3 toolchain")
+    parser.add_argument("--msvc-version", metavar="version", help="Install a specific MSVC toolchain version")
+    parser.add_argument("--sdk-version", metavar="version", help="Install a specific Windows SDK version")
     return parser
 
 def setPackageSelectionMSVC16(args, packages, userversion, sdk, toolversion, defaultPackages):
@@ -88,30 +80,66 @@ def setPackageSelection(args, packages):
     # If no packages are selected, install these versionless packages, which
     # gives the latest/recommended version for the current manifest.
     defaultPackages = ["Microsoft.VisualStudio.Workload.VCTools", "Microsoft.VisualStudio.Component.VC.Tools.ARM", "Microsoft.VisualStudio.Component.VC.Tools.ARM64"]
+
+    # Note, that in the manifest for MSVC version X.Y, only version X.Y-1
+    # exists with a package name like "Microsoft.VisualStudio.Component.VC."
+    # + toolversion + ".x86.x64".
+    if args.msvc_version == "16.0":
+        setPackageSelectionMSVC16(args, packages, args.msvc_version, "10.0.17763", "14.20", defaultPackages)
+    elif args.msvc_version == "16.1":
+        setPackageSelectionMSVC16(args, packages, args.msvc_version, "10.0.18362", "14.21", defaultPackages)
+    elif args.msvc_version == "16.2":
+        setPackageSelectionMSVC16(args, packages, args.msvc_version, "10.0.18362", "14.22", defaultPackages)
+    elif args.msvc_version == "16.3":
+        setPackageSelectionMSVC16(args, packages, args.msvc_version, "10.0.18362", "14.23", defaultPackages)
+    elif args.msvc_version == "16.4":
+        setPackageSelectionMSVC16(args, packages, args.msvc_version, "10.0.18362", "14.24", defaultPackages)
+    elif args.msvc_version == "16.5":
+        setPackageSelectionMSVC16(args, packages, args.msvc_version, "10.0.18362", "14.25", defaultPackages)
+    elif args.msvc_version == "16.6":
+        setPackageSelectionMSVC16(args, packages, args.msvc_version, "10.0.18362", "14.26", defaultPackages)
+    elif args.msvc_version == "16.7":
+        setPackageSelectionMSVC16(args, packages, args.msvc_version, "10.0.18362", "14.27", defaultPackages)
+    elif args.msvc_version == "16.8":
+        setPackageSelectionMSVC16(args, packages, args.msvc_version, "10.0.18362", "14.28", defaultPackages)
+    elif args.msvc_version == "16.9":
+        setPackageSelectionMSVC16(args, packages, args.msvc_version, "10.0.19041", "14.28.16.9", defaultPackages)
+    elif args.msvc_version == "16.10":
+        setPackageSelectionMSVC16(args, packages, args.msvc_version, "10.0.19041", "14.29.16.10", defaultPackages)
+    elif args.msvc_version == "16.11":
+        setPackageSelectionMSVC16(args, packages, args.msvc_version, "10.0.19041", "14.29.16.11", defaultPackages)
+    elif args.msvc_version == "17.0":
+        setPackageSelectionMSVC16(args, packages, args.msvc_version, "10.0.19041", "14.30.17.0", defaultPackages)
+
+    elif args.msvc_version == "15.4":
+        setPackageSelectionMSVC15(args, packages, args.msvc_version, "10.0.16299", "14.11", defaultPackages)
+    elif args.msvc_version == "15.5":
+        setPackageSelectionMSVC15(args, packages, args.msvc_version, "10.0.16299", "14.12", defaultPackages)
+    elif args.msvc_version == "15.6":
+        setPackageSelectionMSVC15(args, packages, args.msvc_version, "10.0.16299", "14.13", defaultPackages)
+    elif args.msvc_version == "15.7":
+        setPackageSelectionMSVC15(args, packages, args.msvc_version, "10.0.17134", "14.14", defaultPackages)
+    elif args.msvc_version == "15.8":
+        setPackageSelectionMSVC15(args, packages, args.msvc_version, "10.0.17134", "14.15", defaultPackages)
+    elif args.msvc_version == "15.9":
+        setPackageSelectionMSVC15(args, packages, args.msvc_version, "10.0.17763", "14.16", defaultPackages)
+    elif args.msvc_version != None:
+        print("Unsupported MSVC toolchain version " + args.msvc_version)
+        sys.exit(1)
+
     if len(args.package) == 0:
         args.package = defaultPackages
 
-    if getattr(args, "msvc_16.0"):
-        setPackageSelectionMSVC16(args, packages, "16.0", "10.0.17763", "14.20", defaultPackages)
-    if getattr(args, "msvc_16.1"):
-        setPackageSelectionMSVC16(args, packages, "16.1", "10.0.18362", "14.21", defaultPackages)
-    if getattr(args, "msvc_16.2"):
-        setPackageSelectionMSVC16(args, packages, "16.2", "10.0.18362", "14.22", defaultPackages)
-    if getattr(args, "msvc_16.3"):
-        setPackageSelectionMSVC16(args, packages, "16.3", "10.0.18362", "14.23", defaultPackages)
-
-    if getattr(args, "msvc_15.4"):
-        setPackageSelectionMSVC15(args, packages, "15.4", "10.0.16299", "14.11", defaultPackages)
-    if getattr(args, "msvc_15.5"):
-        setPackageSelectionMSVC15(args, packages, "15.5", "10.0.16299", "14.12", defaultPackages)
-    if getattr(args, "msvc_15.6"):
-        setPackageSelectionMSVC15(args, packages, "15.6", "10.0.16299", "14.13", defaultPackages)
-    if getattr(args, "msvc_15.7"):
-        setPackageSelectionMSVC15(args, packages, "15.7", "10.0.17134", "14.14", defaultPackages)
-    if getattr(args, "msvc_15.8"):
-        setPackageSelectionMSVC15(args, packages, "15.8", "10.0.17134", "14.15", defaultPackages)
-    if getattr(args, "msvc_15.9"):
-        setPackageSelectionMSVC15(args, packages, "15.9", "10.0.17763", "14.16", defaultPackages)
+    if args.sdk_version != None:
+        for key in packages:
+            if key.startswith("win10sdk") or key.startswith("win11sdk"):
+                base = key[0:8]
+                sdkname = base + "_" + args.sdk_version
+                if key == sdkname:
+                    args.package.append(key)
+                else:
+                    args.ignore.append(key)
+        p = packages[key][0]
 
 def lowercaseIgnores(args):
     ignore = []
@@ -144,7 +172,7 @@ def getManifest(args):
     if args.save_manifest:
         filename = "%s.manifest" % (manifest["info"]["productDisplayVersion"])
         if os.path.isfile(filename):
-            oldfile = open(filename, "r").read()
+            oldfile = open(filename, "rb").read()
             if oldfile != manifestdata:
                 print("Old saved manifest in \"%s\" differs from newly downloaded one, not overwriting!" % (filename))
             else:
@@ -284,7 +312,7 @@ def aggregateDepends(packages, included, target, chip, args):
         return []
     p = findPackage(packages, target, chip)
     if p == None:
-        return
+        return []
     packagekey = getPackageKey(p)
     if packagekey in included:
         return []
@@ -482,9 +510,12 @@ def unpackWin10SDK(src, payloads, dest):
         if name.endswith(".msi"):
             print("Extracting " + name)
             srcfile = os.path.join(src, name)
-            log = open(os.path.join(dest, "WinSDK-" + getPayloadName(payload) + "-listing.txt"), "w")
-            subprocess.check_call(["msiextract", "-C", dest, srcfile], stdout=log)
-            log.close()
+            if sys.platform == "win32":
+                cmd = ["msiexec", "/a", srcfile, "/qn", "TARGETDIR=" + os.path.abspath(dest)]
+            else:
+                cmd = ["msiextract", "-C", dest, srcfile]
+            with open(os.path.join(dest, "WinSDK-" + getPayloadName(payload) + "-listing.txt"), "w") as log:
+                subprocess.check_call(cmd, stdout=log)
 
 def extractPackages(selected, cache, dest):
     makedirs(dest)
@@ -497,7 +528,7 @@ def extractPackages(selected, cache, dest):
             print("Unpacking " + p["id"])
             for payload in p["payloads"]:
                 unpackVsix(os.path.join(dir, getPayloadName(payload)), dest, os.path.join(dest, getPackageKey(p) + "-listing.txt"))
-        elif p["id"].startswith("Win10SDK"):
+        elif p["id"].startswith("Win10SDK") or p["id"].startswith("Win11SDK"):
             print("Unpacking " + p["id"])
             unpackWin10SDK(dir, p["payloads"], dest)
         else:
@@ -509,7 +540,12 @@ def moveVCSDK(unpack, dest):
     # files to be removed.
     makedirs(os.path.join(dest, "kits"))
     mergeTrees(os.path.join(unpack, "VC"), os.path.join(dest, "VC"))
-    mergeTrees(os.path.join(unpack, "Program Files", "Windows Kits", "10"), os.path.join(dest, "kits", "10"))
+    kitsPath = unpack
+    # msiexec extracts to Windows Kits rather than Program Files\Windows Kits
+    if sys.platform != "win32":
+        kitsPath = os.path.join(kitsPath, "Program Files")
+    kitsPath = os.path.join(kitsPath, "Windows Kits", "10")
+    mergeTrees(kitsPath, os.path.join(dest, "kits", "10"))
     # The DIA SDK isn't necessary for normal use, but can be used when e.g.
     # compiling LLVM.
     mergeTrees(os.path.join(unpack, "DIA SDK"), os.path.join(dest, "DIA SDK"))
